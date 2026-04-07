@@ -101,6 +101,9 @@ A: F4 暂停/继续，ESC 紧急停止
 **Q: 可以发送图片吗？**  
 A: 当前仅支持文本
 
+**Q: 如何打包成exe分享给别人？**  
+A: 运行 `build.bat` 或查看 [BUILD_GUIDE.md](BUILD_GUIDE.md)
+
 ---
 
 ## 💡 提示

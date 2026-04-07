@@ -188,10 +188,12 @@ WeComBatchSender/
 ├── app.py                     # 集成版工具（推荐）⭐
 ├── main.py                    # 批量发送工具（独立版）
 ├── contact_cleaner.py         # 联系人整理工具（独立版）
+├── build.bat                  # Windows自动打包脚本
 ├── requirements.txt           # Python依赖
 ├── README.md                  # 主说明文档
 ├── QUICKSTART.md              # 快速开始指南
 ├── QQ_SCREENSHOT_GUIDE.md     # QQ长截图提取教程
+├── BUILD_GUIDE.md             # 打包指南
 ├── CHANGELOG.md               # 更新日志
 └── .lingma/                   # IDE配置
 ```
@@ -199,6 +201,40 @@ WeComBatchSender/
 **使用建议：**
 - ✅ **新手推荐**：使用 `app.py` 集成版，一个窗口搞定所有
 - ✅ **高级用户**：可以分别使用 `main.py` 和 `contact_cleaner.py`
+
+---
+
+## 📦 打包分发
+
+### 快速打包（推荐）
+
+```bash
+# 1. 安装 PyInstaller
+pip install pyinstaller
+
+# 2. 运行打包脚本
+build.bat
+
+# 3. 在 dist 文件夹找到 exe 文件
+```
+
+**详细说明**：查看 [BUILD_GUIDE.md](BUILD_GUIDE.md)
+
+### 分享给别人
+
+**方案A：直接分享 exe**
+- 压缩 `dist` 文件夹
+- 发送给同事/朋友
+- 对方解压即可使用
+
+**方案B：制作完整包**
+```
+企业微信批量发送工具/
+├── 企业微信批量发送工具.exe
+├── README.md
+├── QUICKSTART.md
+└── QQ_SCREENSHOT_GUIDE.md
+```
 
 ---
 
