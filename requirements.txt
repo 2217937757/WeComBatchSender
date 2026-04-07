@@ -1,6 +1,8 @@
-tkinter
+# 批量发送工具依赖
 pyperclip
 pyautogui
 keyboard
-Pillow
-pytesseract
+
+# 联系人整理工具依赖（可选，仅使用 contact_cleaner.py 时需要）
+# Pillow
+# pytesseract
