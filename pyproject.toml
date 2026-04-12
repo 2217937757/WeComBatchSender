@@ -1,0 +1,22 @@
+[project]
+name = "wecombatchsender"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "keyboard>=0.13.5",
+    "pillow>=11.3.0",
+    "pyautogui>=0.9.54",
+    "pyperclip>=1.11.0",
+    "pywin32>=311",
+]
+
+[[tool.uv.index]]
+name = "tsinghua"
+url = "https://pypi.mirrors.ustc.edu.cn/simple/"
+default = true
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple/"
