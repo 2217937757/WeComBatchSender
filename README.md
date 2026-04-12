@@ -40,6 +40,29 @@ WeComBatchSender/
 
 ---
 
+## 🛠️ 打包与分发
+
+### 快速打包
+
+**方式一：只打包主程序**
+```bash
+双击运行：build.bat
+```
+生成：`dist\企业微信批量发送工具.exe`
+
+**方式二：打包全部工具（推荐）**
+```bash
+双击运行：build_all.bat
+```
+生成：
+- `dist\企业微信批量发送工具.exe` - 主程序
+- `dist\获取验证码.exe` - GUI版验证码
+- `dist\生成验证码-命令行.exe` - 命令行版验证码
+
+详细说明请查看 [BUILD_GUIDE.md](BUILD_GUIDE.md)
+
+---
+
 ## 🛠️ 技术栈与依赖
 
 本项目基于 **Python 3.x** 开发，主要依赖以下库：
