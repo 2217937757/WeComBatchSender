@@ -4,7 +4,7 @@
 """
 
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
+from tkinter import ttk, scrolledtext, messagebox, filedialog
 import pyperclip
 import time
 import pyautogui
@@ -12,15 +12,20 @@ import threading
 import keyboard
 import queue
 import re
+import os
 
 # ==================== 全局变量 ====================
 is_paused = False
 is_running = False
 log_queue = queue.Queue()
+selected_images = []  # 存储选中的图片路径
 
 # ==================== 日志系统 ====================
 def log(text):
-    """线程安全的日志函数"""
+    """线程安全的日志函数，同时输出到界面和控制台"""
+    # 输出到控制台
+    print(text)
+    # 输出到界面日志框
     log_queue.put(text + "\n")
 
 def process_log_queue():
@@ -45,37 +50,22 @@ def extract_contacts():
     
     lines = raw_text.split('\n')
     contacts = []
+    seen_contacts = set()  # 用于去重
     
-    # 时间戳匹配模式
-    time_patterns = [
-        r'^\d{1,2}:\d{2}',
-        r'^昨天\d{1,2}:\d{2}',
-        r'^星期[一二三四五六日天]',
-        r'^\d{2}/\d{2}',
-        r'^\d+分钟前',
-        r'^\d+小时前',
-        r'^昨天',
-        r'^前天',
-    ]
-    
-    def is_timestamp(line):
-        for pattern in time_patterns:
-            if re.match(pattern, line):
-                return True
-        return False
-    
-    for i in range(len(lines)):
+    # 遍历所有行，提取奇数行（第1、3、5...行，索引为0、2、4...）作为联系人
+    for i in range(0, len(lines), 2):
         line = lines[i].strip()
         
-        if is_timestamp(line):
-            if i >= 2:
-                contact_line = lines[i - 2].strip()
-                if contact_line:
-                    # 清理多余符号
-                    contact_line = contact_line.replace('@微信', '').replace('@...', '').replace('@', '')
-                    contact_line = contact_line.strip()
-                    if contact_line:
-                        contacts.append(contact_line)
+        if not line:  # 跳过空行
+            continue
+        
+        # 只去掉 @微信
+        cleaned = line.replace('@微信', '').strip()
+        
+        # 添加到结果（去重）
+        if cleaned and cleaned not in seen_contacts:
+            contacts.append(cleaned)
+            seen_contacts.add(cleaned)
     
     # 显示结果
     result_text = '\n'.join(contacts)
@@ -83,7 +73,7 @@ def extract_contacts():
     extract_output.insert("1.0", result_text)
     
     # 更新统计
-    extract_stats.config(text=f"提取到 {len(contacts)} 个联系人/群")
+    extract_stats.config(text=f"提取到 {len(contacts)} 个联系人/群（已去重）")
     
     # 自动复制
     root.clipboard_clear()
@@ -108,6 +98,157 @@ def use_extracted_contacts():
     else:
         messagebox.showwarning("提示", "没有可使用的联系人")
 
+# ==================== 图片管理功能 ====================
+def select_images():
+    """选择多张图片"""
+    global selected_images
+    files = filedialog.askopenfilenames(
+        title="选择图片",
+        filetypes=[("图片文件", "*.png *.jpg *.jpeg *.gif *.bmp *.webp"), ("所有文件", "*.*")]
+    )
+    
+    if files:
+        selected_images.extend(files)
+        update_image_list()
+        log(f"✓ 已添加 {len(files)} 张图片")
+
+def remove_selected_image():
+    """移除选中的图片"""
+    global selected_images
+    selection = image_list.curselection()
+    if selection:
+        index = selection[0]
+        removed = selected_images.pop(index)
+        update_image_list()
+        log(f"✓ 已移除: {os.path.basename(removed)}")
+
+def clear_all_images():
+    """清空所有图片"""
+    global selected_images
+    selected_images.clear()
+    update_image_list()
+    log("✓ 已清空所有图片")
+
+def update_image_list():
+    """更新图片列表显示"""
+    image_list.delete(0, tk.END)
+    for img_path in selected_images:
+        filename = os.path.basename(img_path)
+        image_list.insert(tk.END, f"📷 {filename}")
+
+def copy_image_to_clipboard(image_path):
+    """将图片复制到剪贴板（Windows）"""
+    try:
+        log(f"      [DEBUG] 开始复制图片: {image_path}")
+        
+        from PIL import Image
+        import win32clipboard
+        import win32con
+        
+        # 打开图片
+        log(f"      [DEBUG] 正在打开图片...")
+        img = Image.open(image_path)
+        log(f"      [DEBUG] 图片尺寸: {img.size}, 模式: {img.mode}")
+        
+        # 转换为RGB模式（处理PNG透明度等问题）
+        if img.mode != 'RGB':
+            log(f"      [DEBUG] 转换图片模式: {img.mode} -> RGB")
+            img = img.convert('RGB')
+        
+        # 保存到临时文件
+        temp_path = os.path.join(os.environ.get('TEMP', '.'), 'wecom_temp_image.bmp')
+        log(f"      [DEBUG] 保存临时文件: {temp_path}")
+        img.save(temp_path, 'BMP')
+        log(f"      [DEBUG] 临时文件大小: {os.path.getsize(temp_path)} bytes")
+        
+        # 读取BMP文件数据
+        log(f"      [DEBUG] 读取BMP数据...")
+        with open(temp_path, 'rb') as f:
+            bmp_data = f.read()
+        log(f"      [DEBUG] BMP数据大小: {len(bmp_data)} bytes")
+        
+        # 复制到剪贴板（使用DIB格式）
+        log(f"      [DEBUG] 写入剪贴板...")
+        win32clipboard.OpenClipboard()
+        win32clipboard.EmptyClipboard()
+        win32clipboard.SetClipboardData(win32con.CF_DIB, bmp_data[14:])  # 跳过BMP文件头
+        win32clipboard.CloseClipboard()
+        log(f"      [DEBUG] 成功写入剪贴板")
+        
+        # 清理临时文件
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+            log(f"      [DEBUG] 已清理临时文件")
+            
+        log(f"      [DEBUG] ✓ 图片复制成功")
+        return True
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        log(f"      [DEBUG] ✗ 复制图片失败: {str(e)}")
+        log(f"      [DEBUG] 错误详情:\n{error_detail}")
+        return False
+
+def prepare_message_with_images(msg, images):
+    """
+    准备包含文字和图片的消息
+    策略：先粘贴文字，再依次粘贴图片，最后统一发送
+    """
+    try:
+        log(f"    [DEBUG] 开始准备图文消息")
+        log(f"    [DEBUG] 文字长度: {len(msg) if msg else 0}, 图片数量: {len(images)}")
+        
+        # 步骤1：粘贴文字内容
+        if msg:
+            log(f"    → 粘贴文字内容")
+            pyperclip.copy(msg)
+            time.sleep(0.2)
+            log(f"    [DEBUG] 执行 Ctrl+V 粘贴文字")
+            pyautogui.hotkey('ctrl', 'v')
+            time.sleep(0.3)
+            log(f"    [DEBUG] 文字粘贴完成")
+        else:
+            log(f"    [DEBUG] 无文字内容，跳过")
+        
+        # 步骤2：依次粘贴所有图片
+        if images:
+            log(f"    [DEBUG] 开始处理 {len(images)} 张图片")
+            for img_idx, img_path in enumerate(images, 1):
+                img_name = os.path.basename(img_path)
+                log(f"    → 处理图片 [{img_idx}/{len(images)}]: {img_name}")
+                log(f"    [DEBUG] 图片完整路径: {img_path}")
+                log(f"    [DEBUG] 文件是否存在: {os.path.exists(img_path)}")
+                
+                # 复制图片到剪贴板
+                log(f"    [DEBUG] 调用 copy_image_to_clipboard...")
+                if copy_image_to_clipboard(img_path):
+                    log(f"    [DEBUG] 等待 0.3 秒后粘贴")
+                    time.sleep(0.3)
+                    log(f"    [DEBUG] 执行 Ctrl+V 粘贴图片")
+                    pyautogui.hotkey('ctrl', 'v')
+                    time.sleep(0.5)
+                    log(f"    ✓ 图片已粘贴")
+                else:
+                    log(f"    ✗ 图片复制失败，跳过此图片")
+        else:
+            log(f"    [DEBUG] 无图片内容，跳过")
+        
+        # 步骤3：统一发送（按一次回车）
+        log(f"    → 发送消息（按回车）")
+        log(f"    [DEBUG] 执行 Enter 键")
+        pyautogui.press('enter')
+        time.sleep(1.0)
+        log(f"    ✓ 消息已发送（包含文字+{len(images)}张图片）")
+        
+        return True
+        
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        log(f"【错误】准备消息失败: {str(e)}")
+        log(f"[DEBUG] 错误堆栈:\n{error_detail}")
+        return False
+
 # ==================== 批量发送功能 ====================
 def start_send():
     global is_paused, is_running
@@ -117,10 +258,7 @@ def start_send():
         return
 
     msg = msg_text.get("1.0", tk.END).strip()
-    if not msg:
-        log("【错误】内容不能为空")
-        return
-
+    
     # 获取联系人名称列表
     names_str = names_text.get("1.0", tk.END).strip()
     if not names_str:
@@ -130,6 +268,14 @@ def start_send():
     names = [name.strip() for name in names_str.split('\n') if name.strip()]
     if not names:
         log("【错误】联系人列表为空")
+        return
+    
+    # 自动检测发送内容
+    send_text = bool(msg.strip()) if msg else False
+    send_images = len(selected_images) > 0
+    
+    if not send_text and not send_images:
+        log("【错误】请输入文字或选择图片")
         return
     
     total = len(names)
@@ -150,6 +296,9 @@ def start_send():
     log("=" * 50)
     log(f"发送人数：{total}")
     log(f"联系人列表：{names}")
+    log(f"发送内容：{'文字' if send_text else ''} {'+图片' if send_images else ''}")
+    if send_images:
+        log(f"图片数量：{len(selected_images)}")
     log(f"延时配置 - 粘贴:{paste_delay}s 发送:{send_delay}s 切换:{nav_delay}s")
     log("正在激活企业微信...")
     log("F4 暂停/继续 | ESC 紧急停止")
@@ -200,14 +349,29 @@ def start_send():
                 time.sleep(0.5)
                 log(f"  ✓ 已打开与 {current_name} 的聊天")
 
-                # 步骤3：发送消息
-                pyperclip.copy(msg)
-                time.sleep(0.1)
-                pyautogui.hotkey('ctrl', 'v')
-                time.sleep(paste_delay)
-                pyautogui.press('enter')
-                time.sleep(send_delay)
-                log(f"  ✓ 消息已发送")
+                # 步骤3：准备并发送消息（文字+图片在一条消息中）
+                if send_text and send_images:
+                    # 文字和图片一起发送
+                    log(f"  → 准备图文消息")
+                    prepare_message_with_images(msg, selected_images)
+                    
+                elif send_text:
+                    # 只发送文字
+                    log(f"  → 发送文字消息")
+                    pyperclip.copy(msg)
+                    time.sleep(0.1)
+                    pyautogui.hotkey('ctrl', 'v')
+                    time.sleep(paste_delay)
+                    pyautogui.press('enter')
+                    time.sleep(send_delay)
+                    log(f"  ✓ 文字已发送")
+                    
+                elif send_images:
+                    # 只发送图片（多张图片在一条消息中）
+                    log(f"  → 准备图片消息（{len(selected_images)}张）")
+                    prepare_message_with_images("", selected_images)
+
+                log(f"  ✓ 第 {i+1} 人发送完成")
 
             except Exception as e:
                 log(f"【错误】发送第 {i+1} 人时出错: {str(e)}")
@@ -227,7 +391,7 @@ def start_send():
         log(f"【严重错误】{str(e)}")
     finally:
         is_running = False
-        btn_start.config(state=tk.NORMAL, text="开始运行")
+        btn_start.config(state=tk.NORMAL, text="▶ 开始运行")
 
 def stop_send():
     global is_running, is_paused
@@ -248,7 +412,7 @@ def toggle_pause():
 # ==================== GUI ====================
 root = tk.Tk()
 root.title("企业微信批量发送工具 - 集成版")
-root.geometry("900x800")
+root.geometry("900x850")
 
 # 创建标签页
 notebook = ttk.Notebook(root)
@@ -293,17 +457,36 @@ notebook.add(tab_send, text='📤 批量发送')
 ttk.Label(tab_send, text="企业微信批量发送工具", 
          font=("微软雅黑", 12, "bold")).pack(pady=10)
 
+# 提示说明
+ttk.Label(tab_send, text="💡 提示：程序会自动检测输入内容和已选图片", foreground="gray").pack(anchor=tk.W, padx=20, pady=(5,0))
+ttk.Label(tab_send, text="   - 只输入文字 → 发送纯文字", foreground="gray").pack(anchor=tk.W, padx=20)
+ttk.Label(tab_send, text="   - 只选择图片 → 发送纯图片", foreground="gray").pack(anchor=tk.W, padx=20)
+ttk.Label(tab_send, text="   - 文字+图片 → 发送图文混合消息", foreground="gray").pack(anchor=tk.W, padx=20)
+
 # 发送内容
 ttk.Label(tab_send, text="发送内容").pack(anchor=tk.W, padx=20, pady=(10,0))
-msg_text = scrolledtext.ScrolledText(tab_send, width=110, height=8)
+msg_text = scrolledtext.ScrolledText(tab_send, width=110, height=6)
 msg_text.pack(padx=20, pady=5)
 msg_text.insert("1.0", "你好，这是测试消息")
 
+# 图片选择区域
+img_select_frame = ttk.Frame(tab_send)
+img_select_frame.pack(fill=tk.X, padx=20, pady=5)
+
+ttk.Button(img_select_frame, text="📁 选择图片", command=select_images, width=12).pack(side=tk.LEFT, padx=2)
+ttk.Button(img_select_frame, text="❌ 移除选中", command=remove_selected_image, width=12).pack(side=tk.LEFT, padx=2)
+ttk.Button(img_select_frame, text="🗑️ 清空全部", command=clear_all_images, width=12).pack(side=tk.LEFT, padx=2)
+
+# 图片列表
+ttk.Label(tab_send, text="已选图片列表").pack(anchor=tk.W, padx=20, pady=(5,0))
+image_list = tk.Listbox(tab_send, width=108, height=4)
+image_list.pack(padx=20, pady=5)
+
 # 联系人
 ttk.Label(tab_send, text="联系人名称（每行一个）").pack(anchor=tk.W, padx=20)
-names_text = scrolledtext.ScrolledText(tab_send, width=110, height=10, wrap=tk.NONE)
+names_text = scrolledtext.ScrolledText(tab_send, width=110, height=8, wrap=tk.NONE)
 names_text.pack(padx=20, pady=5)
-names_text.insert("1.0", "张三\n李四")
+names_text.insert("1.0", "小刀\n开发测试用")
 
 # 延时配置
 delay_frame = ttk.Frame(tab_send)

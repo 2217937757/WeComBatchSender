@@ -2,6 +2,8 @@
 pyperclip
 pyautogui
 keyboard
+Pillow
+pywin32
 
 # 联系人整理工具依赖（可选，仅使用 contact_cleaner.py 时需要）
 # Pillow
