@@ -192,25 +192,13 @@ def copy_image_to_clipboard(image_path):
 def prepare_message_with_images(msg, images):
     """
     准备包含文字和图片的消息
-    策略：先粘贴文字，再依次粘贴图片，最后统一发送
+    策略：先依次粘贴图片，再粘贴文字，最后统一发送
     """
     try:
         log(f"    [DEBUG] 开始准备图文消息")
         log(f"    [DEBUG] 文字长度: {len(msg) if msg else 0}, 图片数量: {len(images)}")
         
-        # 步骤1：粘贴文字内容
-        if msg:
-            log(f"    → 粘贴文字内容")
-            pyperclip.copy(msg)
-            time.sleep(0.2)
-            log(f"    [DEBUG] 执行 Ctrl+V 粘贴文字")
-            pyautogui.hotkey('ctrl', 'v')
-            time.sleep(0.3)
-            log(f"    [DEBUG] 文字粘贴完成")
-        else:
-            log(f"    [DEBUG] 无文字内容，跳过")
-        
-        # 步骤2：依次粘贴所有图片
+        # 步骤1：依次粘贴所有图片
         if images:
             log(f"    [DEBUG] 开始处理 {len(images)} 张图片")
             for img_idx, img_path in enumerate(images, 1):
@@ -233,12 +221,24 @@ def prepare_message_with_images(msg, images):
         else:
             log(f"    [DEBUG] 无图片内容，跳过")
         
+        # 步骤2：粘贴文字内容
+        if msg:
+            log(f"    → 粘贴文字内容")
+            pyperclip.copy(msg)
+            time.sleep(0.2)
+            log(f"    [DEBUG] 执行 Ctrl+V 粘贴文字")
+            pyautogui.hotkey('ctrl', 'v')
+            time.sleep(0.3)
+            log(f"    [DEBUG] 文字粘贴完成")
+        else:
+            log(f"    [DEBUG] 无文字内容，跳过")
+        
         # 步骤3：统一发送（按一次回车）
         log(f"    → 发送消息（按回车）")
         log(f"    [DEBUG] 执行 Enter 键")
         pyautogui.press('enter')
         time.sleep(1.0)
-        log(f"    ✓ 消息已发送（包含文字+{len(images)}张图片）")
+        log(f"    ✓ 消息已发送（包含{len(images)}张图片+文字）")
         
         return True
         

@@ -24,6 +24,10 @@ pyinstaller --onefile ^
     --hidden-import=pyperclip ^
     --hidden-import=pyautogui ^
     --hidden-import=keyboard ^
+    --hidden-import=PIL ^
+    --hidden-import=PIL.Image ^
+    --hidden-import=win32clipboard ^
+    --hidden-import=win32con ^
     app.py
 
 echo.
