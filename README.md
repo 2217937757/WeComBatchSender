@@ -6,6 +6,8 @@
 
 ## 🌟 项目亮点
 
+- **🔐 TOTP动态验证码**：每30秒自动刷新，类似Google Authenticator，前后30秒都有效（共90秒）。
+- **🔄 自动重载管理**：运行12小时后自动重启软件，保持最佳性能状态。
 - **🚀 模块化架构**：采用 `core`（核心逻辑）、`gui`（界面交互）、`utils`（工具函数）分层设计，代码清晰，易于二次开发与维护。
 - **📋 智能联系人解析**：内置算法可从 QQ/微信长截图识别的杂乱文本中，精准提取并去重联系人名称。
 - **🖼️ 高级图文引擎**：支持纯文字、单张/多张图片以及“文字+多图”的混合消息发送，确保接收端显示效果一致。
@@ -14,22 +16,26 @@
 
 ---
 
-## 📂 目录结构详解
+## 📂 目录结构
 
-```text
+```
 WeComBatchSender/
-├── app.py                  # 🚪 程序主入口，负责启动 GUI 窗口
-├── wecom/                  # 📦 核心业务包
-│   ├── core/               # ⚙️ 核心逻辑层
-│   │   └── sender.py       # 发送引擎：处理剪贴板、图片转换及 UI 自动化指令
-│   ├── gui/                # 🎨 界面表现层
-│   │   └── app_window.py   # 主窗口类：管理标签页、控件布局及事件响应
-│   └── utils/              # 🛠️ 辅助工具层
-│       └── contact_extractor.py # 联系人解析器：正则匹配与数据清洗
-├── build.bat               # 🏗️ Windows 一键打包脚本（基于 PyInstaller）
-├── requirements.txt        # 📝 Python 依赖清单
-├── README.md               # 📘 项目说明文档（即本文件）
-└── CHANGELOG.md            # 📜 版本更新记录
+├── app.py                      # 程序主入口
+├── auto_reload.py              # 自动重载管理器（12小时重启）
+├── password_generator.py       # TOTP验证码生成器（命令行版）
+├── password_generator_gui.py   # TOTP验证码生成器（GUI版）
+├── wecom/                      # 核心业务包
+│   ├── core/sender.py          # 发送引擎：剪贴板、图片转换、UI自动化
+│   ├── gui/
+│   │   ├── app_window.py       # 主窗口：标签页、控件布局、事件响应
+│   │   └── password_generator_gui.py # 密码生成器GUI界面
+│   └── utils/
+│       ├── contact_extractor.py # 联系人解析器：正则匹配与数据清洗
+│       └── daily_password.py    # TOTP动态验证码生成与验证
+├── build.bat                   # Windows一键打包脚本
+├── requirements.txt            # Python依赖清单
+├── README.md                   # 项目说明文档
+└── CHANGELOG.md                # 版本更新记录
 ```
 
 ---
@@ -46,11 +52,76 @@ WeComBatchSender/
 | `keyboard` | 监听全局热键（如 F4 暂停、ESC 停止） |
 | `Pillow (PIL)` | 图像处理，负责将 PNG/JPG 等格式转换为剪贴板兼容的 BMP 格式 |
 | `pywin32` | Windows 专属 API 调用，实现底层剪贴板数据写入 |
+| `hashlib`, `hmac` | 密码哈希算法，用于生成TOTP动态验证码 |
 
 **安装命令：**
 ```bash
 pip install -r requirements.txt
 ```
+
+---
+
+## 🔐 TOTP动态验证码
+
+### 功能特性
+
+采用行业标准TOTP（Time-based One-Time Password）算法，类似Google Authenticator：
+
+- ⏰ **每30秒刷新**：验证码自动更新
+- 🔄 **时间窗口容错**：前后30秒都有效（共90秒）
+- 🔒 **HMAC-SHA1加密**：行业标准安全算法
+- 📊 **实时倒计时**：显示下次刷新的剩余时间
+
+### 获取验证码
+
+**推荐方式（GUI）：**
+```bash
+双击运行：获取验证码.bat
+或命令行：python password_generator_gui.py
+```
+
+**命令行方式：**
+```bash
+python password_generator.py
+或双击：生成验证码.bat
+```
+
+### 使用步骤
+
+1. 获取验证码（6位数字）
+2. 启动软件（`app.py` 或 exe文件）
+3. 输入验证码
+4. 验证通过后即可使用
+
+> 💡 **提示**：验证码每30秒刷新，但前后30秒内都有效，共有90秒操作时间。
+
+详细说明请查看 [TOTP_USAGE.md](TOTP_USAGE.md)
+
+---
+
+## 🔄 自动重载功能
+
+### 功能说明
+
+自动监控主程序运行时间，达到设定时间（默认12小时）后自动重启，保持最佳性能。
+
+### 启动方式
+
+```bash
+双击运行：启动-自动重载.bat
+或命令行：python auto_reload.py
+```
+
+### 主要特点
+
+- ⏰ **定时重启**：12小时后自动重启（可配置）
+- 📊 **实时倒计时**：显示已运行时间和剩余时间
+- 🔄 **自动管理**：无需手动干预
+- ⚠️ **异常处理**：主程序意外退出时可询问是否重启
+
+> ⚠️ **注意**：自动重启后需要重新输入验证码。
+
+详细说明请查看 [AUTO_RELOAD_USAGE.md](AUTO_RELOAD_USAGE.md)
 
 ---
 

@@ -12,12 +12,27 @@ import pyautogui
 
 from wecom.utils.contact_extractor import extract_contacts_from_text
 from wecom.core.sender import send_to_contact
+from wecom.utils.daily_password import verify_password
 
 class WeComApp:
     def __init__(self, root):
         self.root = root
         self.root.title("企业微信批量发送工具 - 集成版")
-        self.root.geometry("900x850")
+        
+        # 先设置窗口大小并居中
+        window_width = 900
+        window_height = 850
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        x = (screen_width // 2) - (window_width // 2)
+        y = (screen_height // 2) - (window_height // 2)
+        self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        self.root.resizable(False, False)
+        
+        # 先显示密码验证对话框
+        if not self.show_password_dialog(root):
+            root.destroy()
+            return
 
         # 状态变量
         self.is_paused = False
@@ -48,6 +63,120 @@ class WeComApp:
         except queue.Empty:
             pass
         self.root.after(100, self.process_log_queue)
+
+    def show_password_dialog(self, root):
+        """
+        显示密码验证对话框
+        
+        Returns:
+            bool: 验证是否成功
+        """
+        dialog = tk.Toplevel(root)
+        dialog.title("🔐 身份验证")
+        dialog.geometry("400x250")
+        dialog.resizable(False, False)
+        
+        # 居中显示
+        screen_width = dialog.winfo_screenwidth()
+        screen_height = dialog.winfo_screenheight()
+        x = (screen_width // 2) - (400 // 2)
+        y = (screen_height // 2) - (250 // 2)
+        dialog.geometry(f"+{x}+{y}")
+        
+        # 设置模态窗口
+        dialog.transient(root)
+        dialog.grab_set()
+        
+        # 标题
+        title_label = ttk.Label(
+            dialog, 
+            text="🔐 每日验证码验证", 
+            font=("微软雅黑", 14, "bold")
+        )
+        title_label.pack(pady=15)
+        
+        # 说明文字
+        info_label = ttk.Label(
+            dialog,
+            text="请输入6位动态验证码\n(每30秒刷新，前后30秒有效)",
+            font=("微软雅黑", 9),
+            foreground="gray",
+            justify=tk.CENTER
+        )
+        info_label.pack(pady=5)
+        
+        # 密码输入框
+        input_frame = ttk.Frame(dialog)
+        input_frame.pack(pady=10)
+        
+        ttk.Label(input_frame, text="验证码:", font=("微软雅黑", 10)).pack(side=tk.LEFT, padx=5)
+        password_var = tk.StringVar()
+        password_entry = ttk.Entry(
+            input_frame, 
+            textvariable=password_var,
+            show="*",
+            font=("微软雅黑", 11),
+            width=15
+        )
+        password_entry.pack(side=tk.LEFT, padx=5)
+        password_entry.focus_set()
+        
+        # 错误提示标签
+        error_label = ttk.Label(
+            dialog,
+            text="",
+            font=("微软雅黑", 9),
+            foreground="red"
+        )
+        error_label.pack(pady=5)
+        
+        # 按钮框架
+        btn_frame = ttk.Frame(dialog)
+        btn_frame.pack(pady=15)
+        
+        verification_success = [False]  # 使用列表以便在闭包中修改
+        
+        def verify_and_close():
+            input_pwd = password_var.get().strip()
+            if not input_pwd:
+                error_label.config(text="请输入验证码")
+                return
+            
+            if len(input_pwd) != 6:
+                error_label.config(text="验证码必须是6位数字")
+                return
+            
+            if verify_password(input_pwd):
+                verification_success[0] = True
+                dialog.destroy()
+            else:
+                error_label.config(text="验证码错误，请重试")
+                password_var.set("")
+                password_entry.focus_set()
+        
+        def on_enter(event):
+            verify_and_close()
+        
+        password_entry.bind('<Return>', on_enter)
+        
+        ttk.Button(
+            btn_frame,
+            text="✓ 验证",
+            command=verify_and_close,
+            width=10
+        ).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(
+            btn_frame,
+            text="✗ 取消",
+            command=lambda: dialog.destroy(),
+            width=10
+        ).pack(side=tk.LEFT, padx=5)
+        
+        # 等待对话框关闭
+        root.wait_window(dialog)
+        
+        return verification_success[0]
 
     def create_widgets(self):
         notebook = ttk.Notebook(self.root)
@@ -97,7 +226,7 @@ class WeComApp:
         ttk.Label(self.tab_send, text="   - 文字+图片 → 发送图文混合消息", foreground="gray").pack(anchor=tk.W, padx=20)
 
         ttk.Label(self.tab_send, text="发送内容").pack(anchor=tk.W, padx=20, pady=(10,0))
-        self.msg_text = scrolledtext.ScrolledText(self.tab_send, width=110, height=6)
+        self.msg_text = scrolledtext.ScrolledText(self.tab_send, width=110, height=5)
         self.msg_text.pack(padx=20, pady=5)
         self.msg_text.insert("1.0", "你好，这是测试消息")
 
@@ -108,11 +237,11 @@ class WeComApp:
         ttk.Button(img_select_frame, text="🗑️ 清空全部", command=self.clear_all_images, width=12).pack(side=tk.LEFT, padx=2)
 
         ttk.Label(self.tab_send, text="已选图片列表").pack(anchor=tk.W, padx=20, pady=(5,0))
-        self.image_list = tk.Listbox(self.tab_send, width=108, height=4)
+        self.image_list = tk.Listbox(self.tab_send, width=108, height=3)
         self.image_list.pack(padx=20, pady=5)
 
         ttk.Label(self.tab_send, text="联系人名称（每行一个）").pack(anchor=tk.W, padx=20)
-        self.names_text = scrolledtext.ScrolledText(self.tab_send, width=110, height=8, wrap=tk.NONE)
+        self.names_text = scrolledtext.ScrolledText(self.tab_send, width=110, height=10, wrap=tk.NONE)
         self.names_text.pack(padx=20, pady=5)
         self.names_text.insert("1.0", "小刀\n开发测试用")
 
@@ -139,7 +268,7 @@ class WeComApp:
         ttk.Button(send_btn_frame, text="⏹ 停止", command=self.stop_send).pack(side=tk.LEFT, padx=5)
 
         ttk.Label(self.tab_send, text="运行日志（F4 暂停/继续 | ESC 停止）").pack(anchor=tk.W, padx=20)
-        self.log_box = scrolledtext.ScrolledText(self.tab_send, width=110, height=12)
+        self.log_box = scrolledtext.ScrolledText(self.tab_send, width=110, height=14)
         self.log_box.pack(padx=20, pady=5)
 
     # --- 联系人提取逻辑 ---
