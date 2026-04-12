@@ -90,20 +90,10 @@ class WeComApp:
         # 标题
         title_label = ttk.Label(
             dialog, 
-            text="🔐 每日验证码验证", 
+            text="🔐 身份验证", 
             font=("微软雅黑", 14, "bold")
         )
-        title_label.pack(pady=15)
-        
-        # 说明文字
-        info_label = ttk.Label(
-            dialog,
-            text="请输入6位动态验证码\n(每30秒刷新，前后30秒有效)",
-            font=("微软雅黑", 9),
-            foreground="gray",
-            justify=tk.CENTER
-        )
-        info_label.pack(pady=5)
+        title_label.pack(pady=20)
         
         # 密码输入框
         input_frame = ttk.Frame(dialog)
