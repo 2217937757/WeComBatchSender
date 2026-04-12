@@ -12,22 +12,22 @@ if exist "*.spec" del /q "*.spec"
 echo ✓ 清理完成
 echo.
 
-echo [2/3] 开始打包 app.py...
+echo [2/3] 开始打包主程序...
 pyinstaller --onefile ^
     --windowed ^
     --name="企业微信批量发送工具" ^
     --icon=NONE ^
-    --add-data "README.md;." ^
-    --add-data "QUICKSTART.md;." ^
-    --add-data "QQ_SCREENSHOT_GUIDE.md;." ^
+    --add-data "wecom;wecom" ^
     --hidden-import=tkinter ^
     --hidden-import=pyperclip ^
     --hidden-import=pyautogui ^
     --hidden-import=keyboard ^
     --hidden-import=PIL ^
     --hidden-import=PIL.Image ^
+    --hidden-import=PIL._tkinter_finder ^
     --hidden-import=win32clipboard ^
     --hidden-import=win32con ^
+    --hidden-import=hmac ^
     app.py
 
 echo.
@@ -35,10 +35,9 @@ echo [3/3] 打包完成！
 echo.
 echo 📦 可执行文件位置: dist\企业微信批量发送工具.exe
 echo.
-echo 💡 分享建议：
-echo    1. 将 dist 文件夹中的 exe 和文档一起压缩
-echo    2. 建议包含：exe + README.md + QUICKSTART.md
-echo    3. 或者使用根目录的“分享说明.txt”
+echo 💡 提示：
+echo    - 如需打包验证码工具，请运行 build_all.bat
+echo    - 该脚本会同时打包主程序和验证码生成器
 echo.
 echo ⚠️  注意事项：
 echo    1. 首次运行可能需要几秒加载
